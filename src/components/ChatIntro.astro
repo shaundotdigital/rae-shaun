@@ -69,7 +69,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
     width:270px;height:150px;border-radius:20px;overflow:hidden;position:relative;
     background:linear-gradient(135deg,#2b1f4a,#7b3f8c 55%,#e0749a);
   }
-  .wc-gif img,.wc-gif video{width:100%;height:100%;object-fit:cover;display:block}
+  .wc-gif img{width:100%;height:100%;object-fit:cover;display:block}
   .wc-gif .wc-fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:52px}
   .wc-gif .wc-tag{
     position:absolute;right:10px;bottom:8px;
@@ -119,7 +119,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
   const IMG   = intro.dataset.img;
   const RAE   = IMG + 'rae.jpg';
   const SHAUN = IMG + 'shaun.jpg';
-  const GIF_URL = IMG + 'ts-dancing-mtv.mp4';
+  const GIF_URL = IMG + 'ts-dancing-mtv.gif';
 
   const people = {
     them: { name:'Raechel', img:RAE,   cls:'r' },
@@ -159,12 +159,10 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
     lastSide = side;
   }
 
-  // Preload so the GIF (a small looping video) is ready by the time it's "sent"
-  const gifCheck = document.createElement('video');
+  // Preload so the GIF is ready by the time it's "sent"
+  const gifCheck = new Image();
   let gifOk = null;                       // null = still loading, true/false once known
-  gifCheck.preload = 'auto';
-  gifCheck.muted = true;
-  gifCheck.oncanplaythrough = () => { gifOk = true; };
+  gifCheck.onload  = () => { gifOk = true; };
   gifCheck.onerror = () => { gifOk = false; };
   gifCheck.src = GIF_URL;
 
@@ -174,7 +172,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
       return '<span class="wc-fallback" aria-hidden="true">💃</span><span class="wc-tag">GIPHY</span>';
     }
     // If it's still loading, swap to the placeholder only if it then fails
-    return '<video src="' + GIF_URL + '" autoplay muted loop playsinline aria-label="GIF of Taylor Swift dancing" onerror="this.parentNode.innerHTML=\'<span class=&quot;wc-fallback&quot; aria-hidden=&quot;true&quot;>💃</span><span class=&quot;wc-tag&quot;>GIPHY</span>\'"></video>';
+    return '<img src="' + GIF_URL + '" alt="GIF" onerror="this.parentNode.innerHTML=\'<span class=&quot;wc-fallback&quot; aria-hidden=&quot;true&quot;>💃</span><span class=&quot;wc-tag&quot;>GIPHY</span>\'">';
   }
 
   async function play(){
