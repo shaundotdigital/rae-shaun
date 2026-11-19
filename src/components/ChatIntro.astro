@@ -16,7 +16,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
     --wc-yellow:#FFC629; --wc-grey:#EFEFEF; --wc-ink:#1f1d1a; --wc-muted:#6f6a62;
     position:fixed;inset:0;z-index:9999;
     background:#fff;
-    display:flex;flex-direction:column;align-items:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
     font-family:"DM Sans",system-ui,sans-serif;color:var(--wc-ink);
     -webkit-font-smoothing:antialiased;
     transition:transform 1.1s cubic-bezier(.77,0,.18,1);
@@ -34,7 +34,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
   .wc-skip:hover{border-color:var(--wc-ink);color:var(--wc-ink)}
 
   .wc-thread{
-    width:100%;max-width:520px;flex:1;overflow:hidden;
+    width:100%;max-width:520px;flex:0 1 auto;max-height:100%;overflow:hidden;
     padding:24px 20px 48px;
     display:flex;flex-direction:column;justify-content:flex-end;gap:10px;
     transition:opacity 1s ease,filter 1s ease;
@@ -69,7 +69,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
     width:270px;height:150px;border-radius:20px;overflow:hidden;position:relative;
     background:linear-gradient(135deg,#2b1f4a,#7b3f8c 55%,#e0749a);
   }
-  .wc-gif img{width:100%;height:100%;object-fit:cover;display:block}
+  .wc-gif img,.wc-gif video{width:100%;height:100%;object-fit:cover;display:block}
   .wc-gif .wc-fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:52px}
   .wc-gif .wc-tag{
     position:absolute;right:10px;bottom:8px;
@@ -119,7 +119,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
   const IMG   = intro.dataset.img;
   const RAE   = IMG + 'rae.jpg';
   const SHAUN = IMG + 'shaun.jpg';
-  const GIF_URL = IMG + 'ts-dancing-mtv.gif';
+  const GIF_URL = IMG + 'ts-dancing-mtv.mp4';
 
   const people = {
     them: { name:'Raechel', img:RAE,   cls:'r' },
@@ -127,7 +127,8 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
   };
 
   let timers = [], done = false, lastSide = null, lastRow = null;
-  const wait = ms => new Promise(r => timers.push(setTimeout(r, ms)));
+  const SPEED = 1.2;                      // 1 = original pace, higher = faster
+  const wait = ms => new Promise(r => timers.push(setTimeout(r, ms / SPEED)));
 
   function plain(html, cls){
     const el = document.createElement('div');
@@ -159,10 +160,12 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
     lastSide = side;
   }
 
-  // Preload so the GIF is ready by the time it's "sent"
-  const gifCheck = new Image();
+  // Preload so the GIF (a small looping video) is ready by the time it's "sent"
+  const gifCheck = document.createElement('video');
   let gifOk = null;                       // null = still loading, true/false once known
-  gifCheck.onload  = () => { gifOk = true; };
+  gifCheck.preload = 'auto';
+  gifCheck.muted = true;
+  gifCheck.oncanplaythrough = () => { gifOk = true; };
   gifCheck.onerror = () => { gifOk = false; };
   gifCheck.src = GIF_URL;
 
@@ -172,7 +175,7 @@ const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
       return '<span class="wc-fallback" aria-hidden="true">💃</span><span class="wc-tag">GIPHY</span>';
     }
     // If it's still loading, swap to the placeholder only if it then fails
-    return '<img src="' + GIF_URL + '" alt="GIF" onerror="this.parentNode.innerHTML=\'<span class=&quot;wc-fallback&quot; aria-hidden=&quot;true&quot;>💃</span><span class=&quot;wc-tag&quot;>GIPHY</span>\'">';
+    return '<video src="' + GIF_URL + '" autoplay muted loop playsinline aria-label="GIF of Taylor Swift dancing" onerror="this.parentNode.innerHTML=\'<span class=&quot;wc-fallback&quot; aria-hidden=&quot;true&quot;>💃</span><span class=&quot;wc-tag&quot;>GIPHY</span>\'"></video>';
   }
 
   async function play(){
