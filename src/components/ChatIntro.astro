@@ -1,0 +1,228 @@
+---
+// Chat intro: plays the first messages, then slides away to reveal the page.
+// Listen for `chatintro:done` on document to run anything after it ends.
+// Call window.wcPlay() to replay it.
+const imgBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/images/`;
+---
+
+<div id="wc-intro" aria-label="Our first messages" data-img={imgBase}>
+  <button class="wc-skip" type="button">Skip</button>
+  <div class="wc-thread"></div>
+  <div class="wc-tease" aria-live="polite"><i></i><p>and the rest is history...</p></div>
+</div>
+
+<style is:global>
+  #wc-intro{
+    --wc-yellow:#FFC629; --wc-grey:#EFEFEF; --wc-ink:#1f1d1a; --wc-muted:#6f6a62;
+    position:fixed;inset:0;z-index:9999;
+    background:#fff;
+    display:flex;flex-direction:column;align-items:center;
+    font-family:"DM Sans",system-ui,sans-serif;color:var(--wc-ink);
+    -webkit-font-smoothing:antialiased;
+    transition:transform 1.1s cubic-bezier(.77,0,.18,1);
+  }
+  #wc-intro *{box-sizing:border-box}
+  #wc-intro p{margin:0}
+  #wc-intro.wc-gone{transform:translateY(-100%)}
+  html.wc-locked,html.wc-locked body{overflow:hidden}
+
+  .wc-skip{
+    position:absolute;top:18px;right:20px;z-index:3;
+    background:#fff;border:1px solid #ddd;border-radius:999px;
+    padding:6px 14px;font:inherit;font-size:13px;color:var(--wc-muted);cursor:pointer;
+  }
+  .wc-skip:hover{border-color:var(--wc-ink);color:var(--wc-ink)}
+
+  .wc-thread{
+    width:100%;max-width:520px;flex:1;overflow:hidden;
+    padding:24px 20px 48px;
+    display:flex;flex-direction:column;justify-content:flex-end;gap:10px;
+    transition:opacity 1s ease,filter 1s ease;
+  }
+  .wc-thread.wc-dim{opacity:.12;filter:blur(3px)}
+
+  .wc-stamp{text-align:center;color:#9a9a9a;font-size:14px;margin-bottom:8px}
+  .wc-time{align-self:flex-end;color:#9a9a9a;font-size:13px;margin:-2px 50px 0 0}
+
+  .wc-row{display:flex;align-items:flex-end;gap:10px;width:100%}
+  .wc-row.them{justify-content:flex-start}
+  .wc-row.me{justify-content:flex-end}
+  .wc-col{display:flex;flex-direction:column;max-width:78%}
+  .wc-row.them .wc-col{align-items:flex-start}
+  .wc-row.me .wc-col{align-items:flex-end}
+  .wc-name{font-size:13px;font-weight:700;color:var(--wc-muted);margin:0 6px 5px}
+
+  .wc-pic{
+    flex:0 0 40px;width:40px;height:40px;border-radius:50%;overflow:hidden;
+    box-shadow:0 0 0 2px #fff,0 0 0 4px var(--ring);
+  }
+  .wc-pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .wc-pic.r{--ring:#e88aa8}
+  .wc-pic.s{--ring:var(--wc-yellow)}
+  .wc-pic.wc-hide{visibility:hidden}
+
+  .wc-msg{padding:14px 18px;font-size:18px;line-height:1.38;border-radius:22px}
+  .wc-msg.them{background:var(--wc-grey);border-bottom-left-radius:6px}
+  .wc-msg.me{background:var(--wc-yellow);border-bottom-right-radius:6px}
+
+  .wc-gif{
+    width:270px;height:150px;border-radius:20px;overflow:hidden;position:relative;
+    background:linear-gradient(135deg,#2b1f4a,#7b3f8c 55%,#e0749a);
+  }
+  .wc-gif img{width:100%;height:100%;object-fit:cover;display:block}
+  .wc-gif .wc-fallback{position:absolute;inset:0;display:grid;place-items:center;font-size:52px}
+  .wc-gif .wc-tag{
+    position:absolute;right:10px;bottom:8px;
+    color:#fff;font-weight:700;font-size:13px;letter-spacing:.06em;text-shadow:0 1px 3px rgba(0,0,0,.5);
+  }
+
+  .wc-typing{display:inline-flex;gap:5px;padding:16px 18px}
+  .wc-typing span{width:8px;height:8px;border-radius:50%;background:#8a8a8a;animation:wc-dot 1s infinite}
+  .wc-msg.me.wc-typing span{background:#7a5a00}
+  .wc-typing span:nth-child(2){animation-delay:.15s}
+  .wc-typing span:nth-child(3){animation-delay:.3s}
+  @keyframes wc-dot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+
+  .wc-pop{animation:wc-pop .38s cubic-bezier(.2,.9,.3,1.3) both}
+  .wc-row.me .wc-pop{transform-origin:bottom right}
+  .wc-row.them .wc-pop{transform-origin:bottom left}
+  @keyframes wc-pop{from{opacity:0;transform:scale(.6) translateY(10px)}to{opacity:1;transform:none}}
+  .wc-fade{animation:wc-fade .5s ease both}
+  @keyframes wc-fade{from{opacity:0}to{opacity:1}}
+
+  /* "and the rest is history..." - centred, big, away from the bubbles */
+  .wc-tease{
+    position:absolute;inset:0;z-index:2;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    padding:24px;text-align:center;pointer-events:none;
+    opacity:0;transform:translateY(12px);
+    transition:opacity 1s ease .3s,transform 1s ease .3s;
+  }
+  .wc-tease.wc-show{opacity:1;transform:none}
+  .wc-tease p{
+    font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:300;
+    font-size:clamp(34px,7vw,64px);line-height:1.1;color:var(--wc-ink);
+  }
+  .wc-tease i{display:block;width:56px;height:4px;border-radius:4px;background:var(--wc-yellow)}
+
+  @media (max-width:600px){ .wc-msg{font-size:17px} }
+  @media (prefers-reduced-motion:reduce){
+    #wc-intro *,#wc-intro{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+</style>
+
+<script is:inline>
+(function(){
+  const intro  = document.getElementById('wc-intro');
+  const thread = intro.querySelector('.wc-thread');
+  const tease  = intro.querySelector('.wc-tease');
+  const IMG   = intro.dataset.img;
+  const RAE   = IMG + 'rae.jpg';
+  const SHAUN = IMG + 'shaun.jpg';
+  const GIF_URL = IMG + 'ts-dancing-mtv.gif';
+
+  const people = {
+    them: { name:'Raechel', img:RAE,   cls:'r' },
+    me:   { name:'Shaun',   img:SHAUN, cls:'s' }
+  };
+
+  let timers = [], done = false, lastSide = null, lastRow = null;
+  const wait = ms => new Promise(r => timers.push(setTimeout(r, ms)));
+
+  function plain(html, cls){
+    const el = document.createElement('div');
+    el.className = cls; el.innerHTML = html;
+    thread.appendChild(el);
+    lastSide = null;
+  }
+
+  function row(side, inner, bubbleCls, showName){
+    const p = people[side];
+    const r = document.createElement('div');
+    r.className = 'wc-row ' + side;
+    const pic = '<div class="wc-pic ' + p.cls + ' wc-pop"><img src="' + p.img + '" alt="' + p.name + '"></div>';
+    const col = '<div class="wc-col">' +
+      (showName ? '<div class="wc-name">' + p.name + '</div>' : '') +
+      '<div class="' + bubbleCls + '">' + inner + '</div></div>';
+    r.innerHTML = side === 'them' ? pic + col : col + pic;
+    thread.appendChild(r);
+    return r;
+  }
+
+  async function say(side, inner, typingMs, bubbleCls){
+    const sameRun = lastSide === side && lastRow;
+    if (sameRun) lastRow.querySelector('.wc-pic').classList.add('wc-hide');
+    const t = row(side, '<span></span><span></span><span></span>', 'wc-msg wc-typing ' + side + ' wc-pop', !sameRun);
+    await wait(typingMs);
+    t.remove();
+    lastRow = row(side, inner, bubbleCls || ('wc-msg ' + side + ' wc-pop'), !sameRun);
+    lastSide = side;
+  }
+
+  // Preload so the GIF is ready by the time it's "sent"
+  const gifCheck = new Image();
+  let gifOk = null;                       // null = still loading, true/false once known
+  gifCheck.onload  = () => { gifOk = true; };
+  gifCheck.onerror = () => { gifOk = false; };
+  gifCheck.src = GIF_URL;
+
+  // Real GIF if it loaded, otherwise the placeholder (emoji + tag)
+  function gifHtml(){
+    if (gifOk === false) {
+      return '<span class="wc-fallback" aria-hidden="true">💃</span><span class="wc-tag">GIPHY</span>';
+    }
+    // If it's still loading, swap to the placeholder only if it then fails
+    return '<img src="' + GIF_URL + '" alt="GIF" onerror="this.parentNode.innerHTML=\'<span class=&quot;wc-fallback&quot; aria-hidden=&quot;true&quot;>💃</span><span class=&quot;wc-tag&quot;>GIPHY</span>\'">';
+  }
+
+  async function play(){
+    timers.forEach(clearTimeout); timers = [];
+    done = false; lastSide = null; lastRow = null;
+    thread.innerHTML = '';
+    thread.classList.remove('wc-dim');
+    tease.classList.remove('wc-show');
+    intro.classList.remove('wc-gone');
+    intro.style.display = '';
+    document.documentElement.classList.add('wc-locked');
+
+    await wait(900);
+    plain('30 May 2023', 'wc-stamp wc-fade');
+    await wait(1200);
+
+    await say('them', 'A fellow swiftie at last!!!! Howdy!', 2000);
+    await wait(2400);
+
+    await say('me', gifHtml(), 1400, 'wc-gif wc-pop');
+    await wait(2200);
+    plain('7:44 am', 'wc-time wc-fade');
+    await wait(1200);
+
+    await say('me', 'Hey Raechel!!! I guess it’s only right we start off with the hard hitting stuff... give me your top 5 songs OR top 5 albums', 2800);
+    await wait(3200);
+    await say('me', 'And I’m so gonna judge 👀', 1600);
+
+    await wait(5500);                    // time to read the whole chat
+    thread.classList.add('wc-dim');      // chat steps back
+    tease.classList.add('wc-show');      // line takes centre stage
+    await wait(3800);
+    finish();
+  }
+
+  function finish(){
+    if (done) return;
+    done = true;
+    timers.forEach(clearTimeout); timers = [];
+    intro.classList.add('wc-gone');
+    document.documentElement.classList.remove('wc-locked');
+    window.scrollTo(0, 0);
+    setTimeout(() => {
+      intro.style.display = 'none';
+      document.dispatchEvent(new CustomEvent('chatintro:done'));  // hook for your page
+    }, 1150);
+  }
+
+  intro.querySelector('.wc-skip').addEventListener('click', finish);
+  window.wcPlay = play;
+  play();
+})();
+</script>
